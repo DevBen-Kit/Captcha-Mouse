@@ -12,40 +12,180 @@
       margin: 0;
       padding: 0;
       font-family: sans-serif;
+      overflow: hidden;
     }
 
     #captcha-container {
-      background: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
       width: 390px;
       height: 300px;
+      background: white;
+      cursor: none;
+    }
+    
+    #div_mouse_center {
+      position: relative;
+      height: 200px;
+      width: 200px;
+      text-align: center;
+      border: 1px solid #333;
+      border-radius: 400px;
+      box-shadow: #333 5px 5px;
+      align-items: center;
+      overflow: hidden;
+      font-weight: bold;
+      background: #faa;
+    }
+    #span_instruction {
+      pointer-events: none;
+      user-select: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translateX(-50%) translateY(-50%);
     }
 
-    /* Your style here... */
+    #img_cursor {
+      position: absolute;
+      top: -100px;
+      left: 100px;
+      height: 25px;
+      pointer-events: none;
+    }
+      
+    @keyframes smallerAnimKeyFrames {
+      0%   {transform:scale(1);}
+      100% {transform:scale(.2);}
+    }
+      
+    @keyframes biggerAnimKeyFrames {
+      0%   {transform:scale(1);}
+      100% {transform:scale(4);}
+    }
   </style>
 </head>
 
 <body>
   <div id="captcha-container">
-    <!-- Add your CAPTCHA here: -->
-    Hello world!
-
-    <!-- We've added a sample button. Feel free to remove it: -->
-    <button id="solve">
-      Solve!
-    </button>
+    <div id="div_mouse_center">
+      <span id="span_instruction">Hold here for <span id="span_duration" data-default="30"></span> seconds!</span>
+    </div>
+    <img id="img_cursor" src="cursor.png" />
   </div>
 
   <script type="text/javascript">
     (function(window, document){
-      // This is how you tell the parent window that the CAPTCHA was successful.
+      const divContainer = document.getElementById('captcha-container');
+      const divMouseCenter = document.getElementById('div_mouse_center');
+      const imgCursor = document.getElementById('img_cursor');
+      const spanDuration = document.getElementById('span_duration');
+      var intervalSuccess = 0;
+      var animationStart = false;
+      var mouseExtraPosition = {
+        left: 0,
+        top: 0,
+        leftDirection: Math.round(Math.random()) * 2 - 1,
+        topDirection: Math.round(Math.random()) * 2 - 1
+      };
+      
       function captchaSuccess() {
         window.top.postMessage("success", '*');
       }
 
-      // Your CAPTCHA code goes here, we've added a simple example below:
-      document.getElementById('solve')
-           .addEventListener('click', () => captchaSuccess());
+      function moveCursor(event){
+        var eventDoc, doc, body;
 
+        event = event || window.event;
+        eventDoc = (event.target && event.target.ownerDocument) || document;
+        
+        doc = eventDoc.documentElement;
+        body = eventDoc.body;
+        
+        var positionLeft = event.clientX +
+          (doc && doc.scrollLeft || body && body.scrollLeft || 0) -
+          (doc && doc.clientLeft || body && body.clientLeft || 0);
+        var positionTop = event.clientY +
+          (doc && doc.scrollTop  || body && body.scrollTop  || 0) -
+          (doc && doc.clientTop  || body && body.clientTop  || 0 );
+          
+        imgCursor.style.left = positionLeft + mouseExtraPosition.left + "px";
+        imgCursor.style.top = positionTop + mouseExtraPosition.top + "px";
+      }
+
+      function hideCursor() {
+        imgCursor.style.left = "-100px";
+        imgCursor.style.top = "-100px";
+      }
+
+      function startTimer(){
+        console.log("start");
+        var startTime = new Date();
+        var countDown = spanDuration.innerText * 1;
+
+        intervalSuccess = setInterval(function(){
+          var currentTime = new Date();
+          var secondsDiff = Math.floor((currentTime - startTime) / 1000);  
+          var counter = countDown - secondsDiff;
+          spanDuration.innerText = counter;
+
+          if (counter > 0) {
+            spanDuration.innerText = counter;
+
+            if (secondsDiff > 2) {
+              triggerSomething();
+
+              if (animationStart == false) {
+                animationStart = true;
+                divMouseCenter.style.animation = "smallerAnimKeyFrames " + countDown / 2 + "s forwards";
+                imgCursor.style.animation = "biggerAnimKeyFrames " + countDown * 2 + "s forwards";
+              }
+            }
+          }
+          else{
+            captchaSuccess();
+          }
+        }, 100);
+      }
+
+      function resetTimer(){
+        console.log("reset");
+        spanDuration.innerText = spanDuration.getAttribute("data-default");
+
+        if(intervalSuccess != 0) {
+          mouseExtraPosition.left = 0;
+          mouseExtraPosition.top = 0;
+
+          clearInterval(intervalSuccess);
+          intervalSuccess = 0;
+        }
+
+        animationStart = false;
+        divMouseCenter.style.animation = "";
+        imgCursor.style.animation = "";
+      }
+
+      function triggerSomething() {
+        console.log("trigger");
+        imgCursor.style.left = imgCursor.style.left.replace("px", "") * 1 + mouseExtraPosition.leftDirection + "px";
+        imgCursor.style.top = imgCursor.style.top.replace("px", "") * 1 + mouseExtraPosition.topDirection + "px";
+
+        mouseExtraPosition.left += mouseExtraPosition.leftDirection;
+        mouseExtraPosition.top += mouseExtraPosition.topDirection;
+
+        if((Math.round(Math.random()) * 2 - 1) == 1) {
+          mouseExtraPosition.leftDirection = Math.round(Math.random()) * 2 - 1;
+          mouseExtraPosition.topDirection = Math.round(Math.random()) * 2 - 1;
+        }
+      }
+
+      divContainer.addEventListener("mousemove", moveCursor);
+      divContainer.addEventListener("mouseleave", hideCursor);
+      divMouseCenter.addEventListener("mouseenter", startTimer);
+      divMouseCenter.addEventListener("mouseleave", resetTimer);
+
+      resetTimer();
     })(window, document);
   </script>
 </body>
